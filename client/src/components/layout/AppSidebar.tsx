@@ -1,14 +1,15 @@
 import { ChevronsLeft, ChevronsRight, PanelsTopLeft } from "lucide-react"
 import { NavLink } from "react-router-dom"
-
 import { Logo } from "@/components/brand/Logo"
 import { mainNavItems } from "@/components/layout/nav-items"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { useAppStore } from "@/store/use-app-store"
+import { useAuthStore } from "@/store/use-auth-store"
+import { useDataStore } from "@/store/use-data-store"
 
 type AppSidebarProps = {
   className?: string
@@ -23,7 +24,20 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const storeCollapsed = useAppStore((s) => s.sidebarCollapsed)
   const toggleSidebar = useAppStore((s) => s.toggleSidebar)
+  const user = useAuthStore((s) => s.user)
+  const notifications = useDataStore((s) => s.notifications)
+  const unreadCount = notifications.filter((n) => n.read_status === 'unread').length
+
   const collapsed = forceExpanded ? false : storeCollapsed
+
+  const initials = user?.full_name
+    ? user.full_name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "RM"
 
   return (
     <aside
@@ -72,14 +86,25 @@ export function AppSidebar({
                   "flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                   collapsed && "justify-center px-2",
                   isActive &&
-                    "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm",
+                    "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm font-semibold",
                 )
               }
             >
               <item.icon className="size-4 shrink-0" aria-hidden />
               {!collapsed ? (
-                <span className="truncate">{item.title}</span>
+                <span className="flex-1 truncate">{item.title}</span>
               ) : null}
+
+              {item.href === "/notifications" && unreadCount > 0 && (
+                <span
+                  className={cn(
+                    "flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground",
+                    collapsed && "absolute top-1 right-1 size-2 rounded-full p-0 text-[0px]"
+                  )}
+                >
+                  {!collapsed ? unreadCount : ""}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -132,15 +157,16 @@ export function AppSidebar({
           )}
         >
           <Avatar className="size-8">
-            <AvatarFallback className="bg-primary/15 text-xs text-primary">
-              RM
+            {user?.avatar_url && <AvatarImage src={user.avatar_url} alt={user.full_name || 'User'} />}
+            <AvatarFallback className="bg-primary/15 text-xs text-primary font-bold">
+              {initials}
             </AvatarFallback>
           </Avatar>
           {!collapsed ? (
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium">Remindly User</p>
+              <p className="truncate text-sm font-semibold">{user?.full_name || 'Remindly User'}</p>
               <p className="truncate text-xs text-muted-foreground">
-                Personal plan
+                {user?.email || 'Personal plan'}
               </p>
             </div>
           ) : null}
