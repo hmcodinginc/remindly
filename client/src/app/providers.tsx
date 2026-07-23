@@ -1,10 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { type ReactNode, useState } from "react"
+import { type ReactNode, useEffect, useState } from "react"
 import { BrowserRouter } from "react-router-dom"
 import { Toaster } from "sonner"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { useThemeInit } from "@/hooks/use-theme"
+import { useAuthStore } from "@/store/use-auth-store"
+import { useDataStore } from "@/store/use-data-store"
 
 type AppProvidersProps = {
   children: ReactNode
@@ -12,6 +14,14 @@ type AppProvidersProps = {
 
 function ThemeBootstrap({ children }: { children: ReactNode }) {
   useThemeInit()
+  const initializeAuth = useAuthStore((s) => s.initializeAuth)
+  const fetchData = useDataStore((s) => s.fetchData)
+
+  useEffect(() => {
+    initializeAuth()
+    fetchData()
+  }, [initializeAuth, fetchData])
+
   return children
 }
 
