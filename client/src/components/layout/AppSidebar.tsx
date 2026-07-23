@@ -54,7 +54,7 @@ export function AppSidebar({
         )}
       >
         <NavLink
-          to="/dashboard"
+          to="/"
           onClick={onNavigate}
           className="flex min-w-0 items-center"
         >
