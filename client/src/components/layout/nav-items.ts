@@ -3,7 +3,6 @@ import {
   Bell,
   CalendarDays,
   CreditCard,
-  FileText,
   LayoutDashboard,
   LineChart,
   ListTodo,
@@ -29,6 +28,5 @@ export const mainNavItems: NavItem[] = [
   { title: "Habits", href: "/habits", icon: Target },
   { title: "Analytics", href: "/analytics", icon: LineChart },
   { title: "Notifications", href: "/notifications", icon: Bell },
-  { title: "Documents", href: "/documents", icon: FileText },
   { title: "Settings", href: "/settings", icon: Settings },
 ]

@@ -7,7 +7,6 @@ import {
   AnalyticsPage,
   CalendarPage,
   DashboardPage,
-  DocumentsPage,
   HabitsPage,
   NotificationsPage,
   RenewalsPage,
@@ -44,7 +43,6 @@ export function AppRouter() {
         <Route path="/habits" element={<HabitsPage />} />
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
-        <Route path="/documents" element={<DocumentsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
     </Routes>
