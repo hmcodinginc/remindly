@@ -1,10 +1,11 @@
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { Target, Flame, Calendar, Trash2, CheckCircle2, Award } from "lucide-react"
+import { Target, Flame, Calendar, Trash2, CheckCircle2, Award, Search } from "lucide-react"
 import { toast } from "sonner"
 import { useDataStore } from "@/store/use-data-store"
 import { CreateItemModal } from "@/components/modals/CreateItemModal"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 
 export function HabitsPage() {
   const habits = useDataStore((s) => s.habits)
@@ -12,6 +13,7 @@ export function HabitsPage() {
   const toggleHabitLog = useDataStore((s) => s.toggleHabitLog)
   const deleteHabit = useDataStore((s) => s.deleteHabit)
 
+  const [search, setSearch] = useState("")
   const todayStr = new Date().toISOString().split("T")[0]
 
   // Generate last 7 days
@@ -28,6 +30,10 @@ export function HabitsPage() {
     }
   }
 
+  const filteredHabits = habits.filter((h) => {
+    return h.title.toLowerCase().includes(search.toLowerCase()) || (h.description || "").toLowerCase().includes(search.toLowerCase())
+  })
+
   return (
     <div className="space-y-8 pb-10">
       {/* Header */}
@@ -41,9 +47,20 @@ export function HabitsPage() {
         <CreateItemModal defaultType="habit" triggerText="New Habit" />
       </div>
 
+      {/* Search Bar */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search habits by title or description..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
       {/* Habits Grid */}
       <div className="grid gap-6 md:grid-cols-2">
-        {habits.map((h) => {
+        {filteredHabits.map((h) => {
           const isTodayDone = habitLogs.some((hl) => hl.habit_id === h.id && hl.completed_date === todayStr)
 
           return (

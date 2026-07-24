@@ -77,7 +77,6 @@ export const useAuthStore = create<AuthState>()(
               password,
               passwordConfirm: password,
               name: fullName,
-              full_name: fullName,
             })
             // Authenticate immediately after register
             const authData = await pb.collection('users').authWithPassword(email, password)
@@ -85,7 +84,7 @@ export const useAuthStore = create<AuthState>()(
               user: {
                 id: authData.record.id,
                 email: authData.record.email,
-                full_name: fullName,
+                full_name: authData.record.name || fullName,
               },
               loading: false,
             })

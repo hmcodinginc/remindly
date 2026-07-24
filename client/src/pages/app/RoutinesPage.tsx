@@ -1,15 +1,18 @@
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { Sparkles, Sun, Sunset, Moon, Clock, CheckSquare, Square, Trash2 } from "lucide-react"
+import { Sparkles, Sun, Sunset, Moon, Clock, CheckSquare, Square, Trash2, Search } from "lucide-react"
 import { toast } from "sonner"
 import { useDataStore } from "@/store/use-data-store"
 import { CreateItemModal } from "@/components/modals/CreateItemModal"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 
 export function RoutinesPage() {
   const routines = useDataStore((s) => s.routines)
   const toggleRoutineStep = useDataStore((s) => s.toggleRoutineStep)
   const deleteRoutine = useDataStore((s) => s.deleteRoutine)
+
+  const [search, setSearch] = useState("")
 
   const getTimeIcon = (timeOfDay: string) => {
     switch (timeOfDay) {
@@ -33,6 +36,10 @@ export function RoutinesPage() {
     }
   }
 
+  const filteredRoutines = routines.filter((rt) => {
+    return rt.title.toLowerCase().includes(search.toLowerCase())
+  })
+
   return (
     <div className="space-y-8 pb-10">
       {/* Header */}
@@ -46,9 +53,20 @@ export function RoutinesPage() {
         <CreateItemModal defaultType="routine" triggerText="New Routine" />
       </div>
 
+      {/* Search Bar */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search routines by title..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
       {/* Routines Grid */}
       <div className="grid gap-6 md:grid-cols-2">
-        {routines.map((rt) => {
+        {filteredRoutines.map((rt) => {
           const completedCount = rt.steps?.filter((s) => s.completed).length || 0
           const totalCount = rt.steps?.length || 0
           const percent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0

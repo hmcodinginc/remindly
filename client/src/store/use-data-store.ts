@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { pb, isPocketBaseConfigured } from '@/lib/pocketbase/client'
+import { useAuthStore } from './use-auth-store'
 import type {
   Subscription,
   TaskItem,
@@ -11,7 +12,6 @@ import type {
   NotificationItem,
   UserSettings,
   NotificationStatus,
-  NotificationType,
 } from '@/lib/pocketbase/types'
 
 const INITIAL_SUBSCRIPTIONS: Subscription[] = [
@@ -283,6 +283,112 @@ const INITIAL_SETTINGS: UserSettings = {
   updated_at: new Date().toISOString(),
 }
 
+// Payload Sanitizer
+function sanitizePayload<T extends object>(data: T): Omit<T, 'id' | 'created_at' | 'updated_at' | 'created' | 'updated'> {
+  const { id, created_at, updated_at, created, updated, ...rest } = data as any
+  return rest
+}
+
+// Record Mappers
+const mapSubscription = (r: any): Subscription => ({
+  id: r.id,
+  user_id: r.user_id,
+  name: r.name,
+  provider: r.provider,
+  cost: Number(r.cost),
+  currency: r.currency,
+  billing_cycle: r.billing_cycle,
+  category: r.category,
+  payment_method: r.payment_method,
+  next_renewal_date: r.next_renewal_date,
+  status: r.status,
+  auto_renew: Boolean(r.auto_renew),
+  budget_limit: r.budget_limit ? Number(r.budget_limit) : null,
+  notes: r.notes || '',
+  created_at: r.created || r.created_at || new Date().toISOString(),
+  updated_at: r.updated || r.updated_at || new Date().toISOString(),
+})
+
+const mapTask = (r: any): TaskItem => ({
+  id: r.id,
+  user_id: r.user_id,
+  title: r.title,
+  description: r.description || '',
+  due_date: r.due_date || null,
+  priority: r.priority,
+  status: r.status,
+  category: r.category,
+  subtasks: Array.isArray(r.subtasks) ? r.subtasks : (typeof r.subtasks === 'string' ? JSON.parse(r.subtasks) : []),
+  created_at: r.created || r.created_at || new Date().toISOString(),
+  updated_at: r.updated || r.updated_at || new Date().toISOString(),
+})
+
+const mapHabit = (r: any): Habit => ({
+  id: r.id,
+  user_id: r.user_id,
+  title: r.title,
+  description: r.description || '',
+  frequency: r.frequency,
+  target_days: Number(r.target_days),
+  color: r.color || '#6366f1',
+  category: r.category,
+  current_streak: Number(r.current_streak || 0),
+  longest_streak: Number(r.longest_streak || 0),
+  created_at: r.created || r.created_at || new Date().toISOString(),
+})
+
+const mapHabitLog = (r: any): HabitLog => ({
+  id: r.id,
+  habit_id: r.habit_id,
+  user_id: r.user_id,
+  completed_date: r.completed_date,
+  created_at: r.created || r.created_at || new Date().toISOString(),
+})
+
+const mapRoutineStep = (s: any): RoutineStep => ({
+  id: s.id,
+  routine_id: s.routine_id,
+  user_id: s.user_id,
+  title: s.title,
+  completed: Boolean(s.completed),
+  step_order: Number(s.step_order || 0),
+  created_at: s.created || s.created_at || new Date().toISOString(),
+})
+
+const mapRoutine = (r: any, steps: any[] = []): Routine => ({
+  id: r.id,
+  user_id: r.user_id,
+  title: r.title,
+  time_of_day: r.time_of_day,
+  scheduled_time: r.scheduled_time,
+  is_active: Boolean(r.is_active),
+  steps: steps.map(mapRoutineStep),
+  created_at: r.created || r.created_at || new Date().toISOString(),
+})
+
+const mapNotification = (r: any): NotificationItem => ({
+  id: r.id,
+  user_id: r.user_id,
+  title: r.title,
+  message: r.message,
+  type: r.type,
+  read_status: r.read_status,
+  snoozed_until: r.snoozed_until || null,
+  action_url: r.action_url || null,
+  created_at: r.created || r.created_at || new Date().toISOString(),
+})
+
+const mapUserSettings = (r: any): UserSettings => ({
+  user_id: r.user_id || 'demo-user-123',
+  monthly_budget_limit: Number(r.monthly_budget_limit || 300),
+  web_push_enabled: Boolean(r.web_push_enabled),
+  desktop_alerts_enabled: Boolean(r.desktop_alerts_enabled),
+  audio_alerts_enabled: Boolean(r.audio_alerts_enabled),
+  renewal_lead_days: Number(r.renewal_lead_days || 3),
+  theme: r.theme || 'dark',
+  updated_at: r.updated || r.updated_at || new Date().toISOString(),
+})
+
 interface DataState {
   subscriptions: Subscription[]
   tasks: TaskItem[]
@@ -321,7 +427,7 @@ interface DataState {
 
   // Notifications Actions
   addNotification: (notif: Omit<NotificationItem, 'id' | 'created_at'>) => Promise<void>
-  markNotificationStatus: (id: string, status: NotificationStatus) => Promise<void>
+  markNotificationStatus: (id: string, status: any) => Promise<void>
   markAllNotificationsRead: () => Promise<void>
   snoozeNotification: (id: string, hours: number) => Promise<void>
   deleteNotification: (id: string) => Promise<void>
@@ -345,29 +451,31 @@ export const useDataStore = create<DataState>()(
         if (!isPocketBaseConfigured) return
         try {
           const [subs, tsks, hbts, hlogs, rtns, ntfs, stgs] = await Promise.all([
-            pb.collection('subscriptions').getFullList<Subscription>(),
-            pb.collection('tasks').getFullList<TaskItem>(),
-            pb.collection('habits').getFullList<Habit>(),
-            pb.collection('habit_logs').getFullList<HabitLog>(),
-            pb.collection('routines').getFullList<Routine>({ expand: 'routine_steps' }),
-            pb.collection('notifications').getFullList<NotificationItem>(),
-            pb.collection('user_settings').getOne<UserSettings>(get().settings.user_id).catch(() => null),
+            pb.collection('subscriptions').getFullList(),
+            pb.collection('tasks').getFullList(),
+            pb.collection('habits').getFullList(),
+            pb.collection('habit_logs').getFullList(),
+            pb.collection('routines').getFullList({ expand: 'routine_steps' }),
+            pb.collection('notifications').getFullList(),
+            pb.collection('user_settings').getOne(get().settings.user_id).catch(() => null),
           ])
 
-          // Map routines with expanded steps
-          const mappedRoutines = rtns.map((r: any) => ({
-            ...r,
-            steps: r.expand?.routine_steps || [],
-          }))
+          const mappedSubs = subs.map(mapSubscription)
+          const mappedTsks = tsks.map(mapTask)
+          const mappedHbts = hbts.map(mapHabit)
+          const mappedHlogs = hlogs.map(mapHabitLog)
+          const mappedRoutines = rtns.map((r: any) => mapRoutine(r, r.expand?.routine_steps || []))
+          const mappedNtfs = ntfs.map(mapNotification)
+          const mappedStgs = stgs ? mapUserSettings(stgs) : get().settings
 
           set({
-            subscriptions: subs && subs.length > 0 ? subs : get().subscriptions,
-            tasks: tsks && tsks.length > 0 ? tsks : get().tasks,
-            habits: hbts && hbts.length > 0 ? hbts : get().habits,
-            habitLogs: hlogs && hlogs.length > 0 ? hlogs : get().habitLogs,
-            routines: rtns && rtns.length > 0 ? mappedRoutines : get().routines,
-            notifications: ntfs && ntfs.length > 0 ? ntfs : get().notifications,
-            settings: stgs || get().settings,
+            subscriptions: mappedSubs.length > 0 ? mappedSubs : get().subscriptions,
+            tasks: mappedTsks.length > 0 ? mappedTsks : get().tasks,
+            habits: mappedHbts.length > 0 ? mappedHbts : get().habits,
+            habitLogs: mappedHlogs.length > 0 ? mappedHlogs : get().habitLogs,
+            routines: mappedRoutines.length > 0 ? mappedRoutines : get().routines,
+            notifications: mappedNtfs.length > 0 ? mappedNtfs : get().notifications,
+            settings: mappedStgs,
           })
         } catch (err) {
           console.warn('PocketBase fetch notice, maintaining local cache:', err)
@@ -376,18 +484,34 @@ export const useDataStore = create<DataState>()(
 
       // Subscriptions
       addSubscription: async (subData) => {
-        const id = 'sub-' + Date.now()
-        const newSub: Subscription = {
-          ...subData,
-          id,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }
-        set((state) => ({ subscriptions: [newSub, ...state.subscriptions] }))
+        let finalSub: Subscription
+        const userId = useAuthStore.getState().user?.id || 'demo-user-123'
+        const fullSubData = { ...subData, user_id: userId }
 
         if (isPocketBaseConfigured) {
-          await pb.collection('subscriptions').create(newSub)
+          try {
+            const payload = sanitizePayload(fullSubData)
+            const record = await pb.collection('subscriptions').create(payload)
+            finalSub = mapSubscription(record)
+          } catch (err) {
+            console.error('PocketBase create subscription error, falling back:', err)
+            finalSub = {
+              ...fullSubData,
+              id: 'sub-' + Date.now(),
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }
+          }
+        } else {
+          finalSub = {
+            ...fullSubData,
+            id: 'sub-' + Date.now(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
         }
+
+        set((state) => ({ subscriptions: [finalSub, ...state.subscriptions] }))
       },
 
       updateSubscription: async (id, subData) => {
@@ -397,7 +521,12 @@ export const useDataStore = create<DataState>()(
           ),
         }))
         if (isPocketBaseConfigured) {
-          await pb.collection('subscriptions').update(id, subData)
+          try {
+            const payload = sanitizePayload(subData)
+            await pb.collection('subscriptions').update(id, payload)
+          } catch (err) {
+            console.error('PocketBase update subscription error:', err)
+          }
         }
       },
 
@@ -406,24 +535,44 @@ export const useDataStore = create<DataState>()(
           subscriptions: state.subscriptions.filter((s) => s.id !== id),
         }))
         if (isPocketBaseConfigured) {
-          await pb.collection('subscriptions').delete(id)
+          try {
+            await pb.collection('subscriptions').delete(id)
+          } catch (err) {
+            console.error('PocketBase delete subscription error:', err)
+          }
         }
       },
 
       // Tasks
       addTask: async (taskData) => {
-        const id = 'task-' + Date.now()
-        const newTask: TaskItem = {
-          ...taskData,
-          id,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }
-        set((state) => ({ tasks: [newTask, ...state.tasks] }))
+        let finalTask: TaskItem
+        const userId = useAuthStore.getState().user?.id || 'demo-user-123'
+        const fullTaskData = { ...taskData, user_id: userId }
 
         if (isPocketBaseConfigured) {
-          await pb.collection('tasks').create(newTask)
+          try {
+            const payload = sanitizePayload(fullTaskData)
+            const record = await pb.collection('tasks').create(payload)
+            finalTask = mapTask(record)
+          } catch (err) {
+            console.error('PocketBase create task error, falling back:', err)
+            finalTask = {
+              ...fullTaskData,
+              id: 'task-' + Date.now(),
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }
+          }
+        } else {
+          finalTask = {
+            ...fullTaskData,
+            id: 'task-' + Date.now(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
         }
+
+        set((state) => ({ tasks: [finalTask, ...state.tasks] }))
       },
 
       updateTask: async (id, taskData) => {
@@ -433,7 +582,12 @@ export const useDataStore = create<DataState>()(
           ),
         }))
         if (isPocketBaseConfigured) {
-          await pb.collection('tasks').update(id, taskData)
+          try {
+            const payload = sanitizePayload(taskData)
+            await pb.collection('tasks').update(id, payload)
+          } catch (err) {
+            console.error('PocketBase update task error:', err)
+          }
         }
       },
 
@@ -442,7 +596,11 @@ export const useDataStore = create<DataState>()(
           tasks: state.tasks.filter((t) => t.id !== id),
         }))
         if (isPocketBaseConfigured) {
-          await pb.collection('tasks').delete(id)
+          try {
+            await pb.collection('tasks').delete(id)
+          } catch (err) {
+            console.error('PocketBase delete task error:', err)
+          }
         }
       },
 
@@ -464,19 +622,40 @@ export const useDataStore = create<DataState>()(
 
       // Habits
       addHabit: async (habitData) => {
-        const id = 'habit-' + Date.now()
-        const newHabit: Habit = {
-          ...habitData,
-          id,
-          current_streak: 0,
-          longest_streak: 0,
-          created_at: new Date().toISOString(),
-        }
-        set((state) => ({ habits: [newHabit, ...state.habits] }))
+        let finalHabit: Habit
+        const userId = useAuthStore.getState().user?.id || 'demo-user-123'
+        const fullHabitData = { ...habitData, user_id: userId }
 
         if (isPocketBaseConfigured) {
-          await pb.collection('habits').create(newHabit)
+          try {
+            const payload = sanitizePayload({
+              ...fullHabitData,
+              current_streak: 0,
+              longest_streak: 0,
+            })
+            const record = await pb.collection('habits').create(payload)
+            finalHabit = mapHabit(record)
+          } catch (err) {
+            console.error('PocketBase create habit error, falling back:', err)
+            finalHabit = {
+              ...fullHabitData,
+              id: 'habit-' + Date.now(),
+              current_streak: 0,
+              longest_streak: 0,
+              created_at: new Date().toISOString(),
+            }
+          }
+        } else {
+          finalHabit = {
+            ...fullHabitData,
+            id: 'habit-' + Date.now(),
+            current_streak: 0,
+            longest_streak: 0,
+            created_at: new Date().toISOString(),
+          }
         }
+
+        set((state) => ({ habits: [finalHabit, ...state.habits] }))
       },
 
       updateHabit: async (id, habitData) => {
@@ -484,7 +663,12 @@ export const useDataStore = create<DataState>()(
           habits: state.habits.map((h) => (h.id === id ? { ...h, ...habitData } : h)),
         }))
         if (isPocketBaseConfigured) {
-          await pb.collection('habits').update(id, habitData)
+          try {
+            const payload = sanitizePayload(habitData)
+            await pb.collection('habits').update(id, payload)
+          } catch (err) {
+            console.error('PocketBase update habit error:', err)
+          }
         }
       },
 
@@ -494,7 +678,11 @@ export const useDataStore = create<DataState>()(
           habitLogs: state.habitLogs.filter((hl) => hl.habit_id !== id),
         }))
         if (isPocketBaseConfigured) {
-          await pb.collection('habits').delete(id)
+          try {
+            await pb.collection('habits').delete(id)
+          } catch (err) {
+            console.error('PocketBase delete habit error:', err)
+          }
         }
       },
 
@@ -504,23 +692,45 @@ export const useDataStore = create<DataState>()(
         )
 
         let newLogs = [...get().habitLogs]
+        const userId = useAuthStore.getState().user?.id || 'demo-user-123'
+
         if (existing) {
           newLogs = newLogs.filter((hl) => hl.id !== existing.id)
           if (isPocketBaseConfigured) {
-            await pb.collection('habit_logs').delete(existing.id)
+            try {
+              await pb.collection('habit_logs').delete(existing.id)
+            } catch (err) {
+              console.error('PocketBase delete habit log error:', err)
+            }
           }
         } else {
-          const newLog: HabitLog = {
-            id: 'hl-' + Date.now(),
+          let finalLog: HabitLog
+          const logData = {
             habit_id: habitId,
-            user_id: get().habits.find((h) => h.id === habitId)?.user_id || 'demo-user-123',
+            user_id: userId,
             completed_date: dateStr,
-            created_at: new Date().toISOString(),
           }
-          newLogs.push(newLog)
+
           if (isPocketBaseConfigured) {
-            await pb.collection('habit_logs').create(newLog)
+            try {
+              const record = await pb.collection('habit_logs').create(logData)
+              finalLog = mapHabitLog(record)
+            } catch (err) {
+              console.error('PocketBase create habit log error, falling back:', err)
+              finalLog = {
+                id: 'hl-' + Date.now(),
+                ...logData,
+                created_at: new Date().toISOString(),
+              }
+            }
+          } else {
+            finalLog = {
+              id: 'hl-' + Date.now(),
+              ...logData,
+              created_at: new Date().toISOString(),
+            }
           }
+          newLogs.push(finalLog)
         }
 
         // Recalculate streak
@@ -541,42 +751,82 @@ export const useDataStore = create<DataState>()(
       // Routines
       addRoutine: async ({ title, time_of_day, scheduled_time, steps }) => {
         const id = 'rt-' + Date.now()
-        const routineSteps: RoutineStep[] = steps.map((sTitle, idx) => ({
-          id: `rts-${Date.now()}-${idx}`,
-          routine_id: id,
-          user_id: 'demo-user-123',
-          title: sTitle,
-          completed: false,
-          step_order: idx + 1,
-          created_at: new Date().toISOString(),
-        }))
+        const userId = useAuthStore.getState().user?.id || 'demo-user-123'
 
-        const newRoutine: Routine = {
-          id,
-          user_id: 'demo-user-123',
-          title,
-          time_of_day,
-          scheduled_time,
-          is_active: true,
-          steps: routineSteps,
-          created_at: new Date().toISOString(),
-        }
-
-        set((state) => ({ routines: [newRoutine, ...state.routines] }))
+        let finalRoutine: Routine
 
         if (isPocketBaseConfigured) {
-          await pb.collection('routines').create({
+          try {
+            const rPayload = {
+              title,
+              time_of_day,
+              scheduled_time,
+              is_active: true,
+              user_id: userId,
+            }
+            const rRecord = await pb.collection('routines').create(rPayload)
+
+            const routineSteps: RoutineStep[] = []
+            for (let idx = 0; idx < steps.length; idx++) {
+              const sPayload = {
+                routine_id: rRecord.id,
+                user_id: userId,
+                title: steps[idx],
+                completed: false,
+                step_order: idx + 1,
+              }
+              const sRecord = await pb.collection('routine_steps').create(sPayload)
+              routineSteps.push(mapRoutineStep(sRecord))
+            }
+
+            finalRoutine = mapRoutine(rRecord, routineSteps)
+          } catch (err) {
+            console.error('PocketBase create routine error, falling back:', err)
+            const routineSteps: RoutineStep[] = steps.map((sTitle, idx) => ({
+              id: `rts-${Date.now()}-${idx}`,
+              routine_id: id,
+              user_id: userId,
+              title: sTitle,
+              completed: false,
+              step_order: idx + 1,
+              created_at: new Date().toISOString(),
+            }))
+
+            finalRoutine = {
+              id,
+              user_id: userId,
+              title,
+              time_of_day,
+              scheduled_time,
+              is_active: true,
+              steps: routineSteps,
+              created_at: new Date().toISOString(),
+            }
+          }
+        } else {
+          const routineSteps: RoutineStep[] = steps.map((sTitle, idx) => ({
+            id: `rts-${Date.now()}-${idx}`,
+            routine_id: id,
+            user_id: userId,
+            title: sTitle,
+            completed: false,
+            step_order: idx + 1,
+            created_at: new Date().toISOString(),
+          }))
+
+          finalRoutine = {
             id,
-            user_id: 'demo-user-123',
+            user_id: userId,
             title,
             time_of_day,
             scheduled_time,
             is_active: true,
-          })
-          for (const step of routineSteps) {
-            await pb.collection('routine_steps').create(step)
+            steps: routineSteps,
+            created_at: new Date().toISOString(),
           }
         }
+
+        set((state) => ({ routines: [finalRoutine, ...state.routines] }))
       },
 
       updateRoutine: async (id, routineData) => {
@@ -584,7 +834,12 @@ export const useDataStore = create<DataState>()(
           routines: state.routines.map((r) => (r.id === id ? { ...r, ...routineData } : r)),
         }))
         if (isPocketBaseConfigured) {
-          await pb.collection('routines').update(id, routineData)
+          try {
+            const payload = sanitizePayload(routineData)
+            await pb.collection('routines').update(id, payload)
+          } catch (err) {
+            console.error('PocketBase update routine error:', err)
+          }
         }
       },
 
@@ -593,7 +848,11 @@ export const useDataStore = create<DataState>()(
           routines: state.routines.filter((r) => r.id !== id),
         }))
         if (isPocketBaseConfigured) {
-          await pb.collection('routines').delete(id)
+          try {
+            await pb.collection('routines').delete(id)
+          } catch (err) {
+            console.error('PocketBase delete routine error:', err)
+          }
         }
       },
 
@@ -612,25 +871,46 @@ export const useDataStore = create<DataState>()(
         }))
 
         if (isPocketBaseConfigured) {
-          const step = updatedSteps.find((s) => s.id === stepId)
-          if (step) {
-            await pb.collection('routine_steps').update(stepId, { completed: step.completed })
+          try {
+            const step = updatedSteps.find((s) => s.id === stepId)
+            if (step) {
+              const payload = { completed: step.completed }
+              await pb.collection('routine_steps').update(stepId, payload)
+            }
+          } catch (err) {
+            console.error('PocketBase toggle routine step error:', err)
           }
         }
       },
 
       // Notifications
       addNotification: async (notifData) => {
-        const id = 'notif-' + Date.now()
-        const newNotif: NotificationItem = {
-          ...notifData,
-          id,
-          created_at: new Date().toISOString(),
-        }
-        set((state) => ({ notifications: [newNotif, ...state.notifications] }))
+        let finalNotif: NotificationItem
+        const userId = useAuthStore.getState().user?.id || 'demo-user-123'
+        const fullNotifData = { ...notifData, user_id: userId }
+
         if (isPocketBaseConfigured) {
-          await pb.collection('notifications').create(newNotif)
+          try {
+            const payload = sanitizePayload(fullNotifData)
+            const record = await pb.collection('notifications').create(payload)
+            finalNotif = mapNotification(record)
+          } catch (err) {
+            console.error('PocketBase create notification error, falling back:', err)
+            finalNotif = {
+              ...fullNotifData,
+              id: 'notif-' + Date.now(),
+              created_at: new Date().toISOString(),
+            }
+          }
+        } else {
+          finalNotif = {
+            ...fullNotifData,
+            id: 'notif-' + Date.now(),
+            created_at: new Date().toISOString(),
+          }
         }
+
+        set((state) => ({ notifications: [finalNotif, ...state.notifications] }))
       },
 
       markNotificationStatus: async (id, status) => {
@@ -638,7 +918,11 @@ export const useDataStore = create<DataState>()(
           notifications: state.notifications.map((n) => (n.id === id ? { ...n, read_status: status } : n)),
         }))
         if (isPocketBaseConfigured) {
-          await pb.collection('notifications').update(id, { read_status: status })
+          try {
+            await pb.collection('notifications').update(id, { read_status: status })
+          } catch (err) {
+            console.error('PocketBase mark notification status error:', err)
+          }
         }
       },
 
@@ -647,9 +931,13 @@ export const useDataStore = create<DataState>()(
           notifications: state.notifications.map((n) => ({ ...n, read_status: 'read' })),
         }))
         if (isPocketBaseConfigured) {
-          const unreads = get().notifications.filter((n) => n.read_status === 'unread')
-          for (const u of unreads) {
-            await pb.collection('notifications').update(u.id, { read_status: 'read' })
+          try {
+            const unreads = get().notifications.filter((n) => n.read_status === 'unread')
+            for (const u of unreads) {
+              await pb.collection('notifications').update(u.id, { read_status: 'read' })
+            }
+          } catch (err) {
+            console.error('PocketBase mark all read error:', err)
           }
         }
       },
@@ -662,7 +950,11 @@ export const useDataStore = create<DataState>()(
           ),
         }))
         if (isPocketBaseConfigured) {
-          await pb.collection('notifications').update(id, { snoozed_until: snoozedUntil, read_status: 'read' })
+          try {
+            await pb.collection('notifications').update(id, { snoozed_until: snoozedUntil, read_status: 'read' })
+          } catch (err) {
+            console.error('PocketBase snooze notification error:', err)
+          }
         }
       },
 
@@ -671,7 +963,11 @@ export const useDataStore = create<DataState>()(
           notifications: state.notifications.filter((n) => n.id !== id),
         }))
         if (isPocketBaseConfigured) {
-          await pb.collection('notifications').delete(id)
+          try {
+            await pb.collection('notifications').delete(id)
+          } catch (err) {
+            console.error('PocketBase delete notification error:', err)
+          }
         }
       },
 
@@ -681,10 +977,12 @@ export const useDataStore = create<DataState>()(
           settings: { ...state.settings, ...newSettings, updated_at: new Date().toISOString() },
         }))
         if (isPocketBaseConfigured) {
-          await pb.collection('user_settings').update(get().settings.user_id, {
-            ...newSettings,
-            updated_at: new Date().toISOString(),
-          })
+          try {
+            const payload = sanitizePayload(newSettings)
+            await pb.collection('user_settings').update(get().settings.user_id, payload)
+          } catch (err) {
+            console.error('PocketBase update settings error:', err)
+          }
         }
       },
     }),

@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "main": "main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -10,7 +11,9 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "electron:dev": "node electron-launcher.cjs",
+    "electron:build": "vite build && electron-builder"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -41,6 +44,8 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3",
     "eslint": "^10.7.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.6",
@@ -52,5 +57,21 @@
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.64.0",
     "vite": "^8.1.1"
+  },
+  "build": {
+    "appId": "com.remindly.app",
+    "productName": "Remindly",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "main.cjs",
+      "preload.cjs",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    }
   }
 }

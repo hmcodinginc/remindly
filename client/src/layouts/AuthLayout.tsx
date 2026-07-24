@@ -13,7 +13,7 @@ export function AuthLayout() {
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
-      <Link to="/" className="mb-8">
+      <Link to="/dashboard" className="mb-8">
         <Logo />
       </Link>
       <div className="w-full max-w-md rounded-2xl border border-border/60 bg-card/70 p-6 shadow-xl backdrop-blur-xl md:p-8">
