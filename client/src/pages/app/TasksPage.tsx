@@ -1,10 +1,11 @@
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { ListTodo, CheckCircle2, Circle, Clock, Trash2, Plus, LayoutGrid, List } from "lucide-react"
+import { ListTodo, CheckCircle2, Circle, Clock, Trash2, Plus, LayoutGrid, List, Search } from "lucide-react"
 import { toast } from "sonner"
 import { useDataStore } from "@/store/use-data-store"
 import { CreateItemModal } from "@/components/modals/CreateItemModal"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 
 export function TasksPage() {
   const tasks = useDataStore((s) => s.tasks)
@@ -12,14 +13,16 @@ export function TasksPage() {
   const toggleSubtask = useDataStore((s) => s.toggleSubtask)
   const deleteTask = useDataStore((s) => s.deleteTask)
 
+  const [search, setSearch] = useState("")
   const [filterPriority, setFilterPriority] = useState<string>("all")
   const [filterStatus, setFilterStatus] = useState<string>("all")
   const [viewMode, setViewMode] = useState<"list" | "board">("list")
 
   const filteredTasks = tasks.filter((t) => {
+    const matchesSearch = t.title.toLowerCase().includes(search.toLowerCase()) || (t.description || "").toLowerCase().includes(search.toLowerCase())
     const matchesPriority = filterPriority === "all" || t.priority === filterPriority
     const matchesStatus = filterStatus === "all" || t.status === filterStatus
-    return matchesPriority && matchesStatus
+    return matchesSearch && matchesPriority && matchesStatus
   })
 
   const handleDelete = async (id: string, title: string) => {
@@ -64,7 +67,17 @@ export function TasksPage() {
 
       {/* Filter Bar */}
       <div className="flex flex-wrap items-center gap-3 bg-card/40 p-4 rounded-2xl border border-border/50">
-        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Filter By:</span>
+        <div className="relative flex-1 min-w-[200px] max-w-xs">
+          <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search tasks..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-8 h-8 text-xs bg-background"
+          />
+        </div>
+
+        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Filter:</span>
 
         <select
           value={filterPriority}

@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { type ReactNode, useEffect, useState } from "react"
-import { BrowserRouter } from "react-router-dom"
+import { BrowserRouter, HashRouter } from "react-router-dom"
 import { Toaster } from "sonner"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -38,16 +38,19 @@ export function AppProviders({ children }: AppProvidersProps) {
       }),
   )
 
+  const isElectron = typeof window !== "undefined" && window.navigator.userAgent.toLowerCase().includes("electron")
+  const Router = isElectron ? HashRouter : BrowserRouter
+
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <Router>
         <TooltipProvider>
           <ThemeBootstrap>
             {children}
             <Toaster richColors position="top-right" />
           </ThemeBootstrap>
         </TooltipProvider>
-      </BrowserRouter>
+      </Router>
     </QueryClientProvider>
   )
 }

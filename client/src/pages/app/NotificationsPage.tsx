@@ -15,6 +15,7 @@ import {
   Target,
   Sparkles,
   BarChart,
+  Search,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useDataStore } from "@/store/use-data-store"
@@ -24,6 +25,7 @@ import {
   triggerBrowserPush,
 } from "@/hooks/use-notifications-engine"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 
 export function NotificationsPage() {
   const notifications = useDataStore((s) => s.notifications)
@@ -33,6 +35,7 @@ export function NotificationsPage() {
   const deleteNotification = useDataStore((s) => s.deleteNotification)
   const addNotification = useDataStore((s) => s.addNotification)
 
+  const [search, setSearch] = useState("")
   const [activeTab, setActiveTab] = useState<string>("all")
   const [typeFilter, setTypeFilter] = useState<string>("all")
 
@@ -43,7 +46,11 @@ export function NotificationsPage() {
     if (activeTab === "snoozed" && !n.snoozed_until) return false
 
     if (typeFilter !== "all" && n.type !== typeFilter) return false
-    return true
+
+    const matchesSearch =
+      n.title.toLowerCase().includes(search.toLowerCase()) ||
+      n.message.toLowerCase().includes(search.toLowerCase())
+    return matchesSearch
   })
 
   const unreadCount = notifications.filter((n) => n.read_status === "unread").length
@@ -151,22 +158,34 @@ export function NotificationsPage() {
           </button>
         </div>
 
-        {/* Type Filter */}
-        <div className="flex items-center gap-2">
-          <Filter className="size-4 text-muted-foreground" />
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="rounded-md border border-input bg-background px-3 py-1.5 text-xs font-semibold"
-          >
-            <option value="all">All Notification Types</option>
-            <option value="subscription_renewal">Subscription Renewals</option>
-            <option value="budget_alert">Budget Alerts</option>
-            <option value="task_reminder">Task Reminders</option>
-            <option value="habit_reminder">Habit Reminders</option>
-            <option value="weekly_summary">Weekly Summaries</option>
-            <option value="monthly_summary">Monthly Summaries</option>
-          </select>
+        {/* Type Filter & Search */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative w-full sm:w-48">
+            <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search alerts..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8 h-8 text-xs bg-background"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Filter className="size-4 text-muted-foreground" />
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="rounded-md border border-input bg-background px-3 py-1.5 text-xs font-semibold"
+            >
+              <option value="all">All Notification Types</option>
+              <option value="subscription_renewal">Subscription Renewals</option>
+              <option value="budget_alert">Budget Alerts</option>
+              <option value="task_reminder">Task Reminders</option>
+              <option value="habit_reminder">Habit Reminders</option>
+              <option value="weekly_summary">Weekly Summaries</option>
+              <option value="monthly_summary">Monthly Summaries</option>
+            </select>
+          </div>
         </div>
       </div>
 
