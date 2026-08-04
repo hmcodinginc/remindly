@@ -3,6 +3,23 @@ import { persist } from 'zustand/middleware'
 import { pb, isPocketBaseConfigured } from '@/lib/pocketbase/client'
 import type { Profile } from '@/lib/pocketbase/types'
 
+function formatPocketBaseError(error: any, defaultMsg: string): string {
+  if (!error) return defaultMsg
+  if (error.status === 0 || error.message === 'Failed to fetch') {
+    return 'Database server is unreachable on http://127.0.0.1:8090. Ensure PocketBase is running.'
+  }
+  const data = error.data?.data || error.response?.data
+  if (data && typeof data === 'object') {
+    const keys = Object.keys(data)
+    if (keys.length > 0) {
+      const firstKey = keys[0]
+      const msg = data[firstKey]?.message
+      if (msg) return `${firstKey}: ${msg}`
+    }
+  }
+  return error.message || defaultMsg
+}
+
 export interface UserSession {
   id: string
   email: string
@@ -18,20 +35,14 @@ interface AuthState {
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
+  deleteAccount: () => Promise<{ error: Error | null }>
   initializeAuth: () => Promise<void>
-}
-
-const DEFAULT_DEMO_USER: UserSession = {
-  id: 'demo-user-123',
-  email: 'alex.remindly@example.com',
-  full_name: 'Alex Morgan',
-  avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      user: DEFAULT_DEMO_USER,
+      user: null,
       loading: false,
       initialized: false,
 
@@ -39,11 +50,7 @@ export const useAuthStore = create<AuthState>()(
 
       initializeAuth: async () => {
         if (!isPocketBaseConfigured) {
-          if (!get().user) {
-            set({ user: DEFAULT_DEMO_USER, initialized: true })
-          } else {
-            set({ initialized: true })
-          }
+          set({ initialized: true })
           return
         }
 
@@ -91,7 +98,8 @@ export const useAuthStore = create<AuthState>()(
             return { error: null }
           } catch (error: any) {
             set({ loading: false })
-            return { error: new Error(error.message || 'Registration failed') }
+            const msg = formatPocketBaseError(error, 'Registration failed')
+            return { error: new Error(msg) }
           }
         } else {
           const user: UserSession = {
@@ -121,7 +129,8 @@ export const useAuthStore = create<AuthState>()(
             return { error: null }
           } catch (error: any) {
             set({ loading: false })
-            return { error: new Error(error.message || 'Invalid email or password') }
+            const msg = formatPocketBaseError(error, 'Invalid email or password')
+            return { error: new Error(msg) }
           }
         } else {
           const user: UserSession = {
@@ -139,6 +148,28 @@ export const useAuthStore = create<AuthState>()(
           pb.authStore.clear()
         }
         set({ user: null })
+      },
+
+      deleteAccount: async () => {
+        const user = get().user
+        if (!user) return { error: new Error("No active user session found.") }
+
+        set({ loading: true })
+        if (isPocketBaseConfigured) {
+          try {
+            await pb.collection("users").delete(user.id)
+            pb.authStore.clear()
+            set({ user: null, loading: false })
+            return { error: null }
+          } catch (err: any) {
+            set({ loading: false })
+            const msg = formatPocketBaseError(err, 'Failed to delete account from PocketBase.')
+            return { error: new Error(msg) }
+          }
+        } else {
+          set({ user: null, loading: false })
+          return { error: null }
+        }
       },
     }),
     {

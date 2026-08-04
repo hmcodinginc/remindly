@@ -5,18 +5,17 @@ import {
   Bell,
   Sparkles,
   ListTodo,
-  CalendarDays,
   TrendingUp,
-  AlertTriangle,
-  CheckCircle2,
   Clock,
   ArrowRight,
+  PiggyBank,
+  CheckCircle2,
+  ShieldCheck,
 } from "lucide-react"
 import { Link } from "react-router-dom"
 import { useDataStore } from "@/store/use-data-store"
 import { useNotificationsEngine } from "@/hooks/use-notifications-engine"
 import { CreateItemModal } from "@/components/modals/CreateItemModal"
-import { Button } from "@/components/ui/button"
 
 export function DashboardPage() {
   useNotificationsEngine()
@@ -27,349 +26,343 @@ export function DashboardPage() {
   const habitLogs = useDataStore((s) => s.habitLogs)
   const routines = useDataStore((s) => s.routines)
   const notifications = useDataStore((s) => s.notifications)
-  const toggleTaskCompleted = useDataStore((s) => s.toggleTaskCompleted)
-  const toggleHabitLog = useDataStore((s) => s.toggleHabitLog)
-  const toggleRoutineStep = useDataStore((s) => s.toggleRoutineStep)
 
   const todayStr = new Date().toISOString().split("T")[0]
 
-  // Stats calculations
-  const totalMonthlySpend = subscriptions
-    .filter((s) => s.status === "active")
-    .reduce((acc, s) => {
-      if (s.billing_cycle === "monthly") return acc + s.cost
-      if (s.billing_cycle === "yearly") return acc + s.cost / 12
-      if (s.billing_cycle === "weekly") return acc + s.cost * 4.33
-      return acc
-    }, 0)
+  // Financial calculations
+  const activeSubs = subscriptions.filter((s) => s.status === "active")
+  const totalMonthlySpend = activeSubs.reduce((acc, s) => {
+    if (s.billing_cycle === "monthly") return acc + s.cost
+    if (s.billing_cycle === "yearly") return acc + s.cost / 12
+    if (s.billing_cycle === "weekly") return acc + s.cost * 4.33
+    return acc
+  }, 0)
 
+  const totalAnnualSpend = totalMonthlySpend * 12
+
+  // Upcoming Renewals (next 30 days)
+  const nowMs = Date.now()
+  const thirtyDaysMs = 30 * 86400000
+  const upcomingRenewals = activeSubs.filter((s) => {
+    if (!s.next_renewal_date) return false
+    const renewalMs = new Date(s.next_renewal_date).getTime()
+    return renewalMs >= nowMs && renewalMs <= nowMs + thirtyDaysMs
+  })
+
+  const upcomingCost = upcomingRenewals.reduce((acc, s) => acc + s.cost, 0)
+
+  // Budget & Savings
+  const totalBudgetLimit = subscriptions.reduce((acc, s) => acc + (s.budget_limit || 0), 0)
+  const monthlySavings = Math.max(0, totalBudgetLimit - totalMonthlySpend)
+
+  // Task metrics
+  const completedTasksCount = tasks.filter((t) => t.status === "completed").length
   const pendingTasks = tasks.filter((t) => t.status !== "completed")
-  const urgentTasks = pendingTasks.filter((t) => t.priority === "urgent" || t.priority === "high")
+  const urgentTasksCount = pendingTasks.filter((t) => t.priority === "urgent" || t.priority === "high").length
+  const taskCompletionRate = tasks.length > 0 ? Math.round((completedTasksCount / tasks.length) * 100) : 0
 
+  // Habit metrics
   const activeHabitsCheckedToday = habits.filter((h) =>
     habitLogs.some((hl) => hl.habit_id === h.id && hl.completed_date === todayStr)
   )
+  const habitCompletionRate = habits.length > 0 ? Math.round((activeHabitsCheckedToday.length / habits.length) * 100) : 0
 
+  // Routine metrics
+  const totalRoutineSteps = routines.reduce((acc, r) => acc + (r.steps?.length || 0), 0)
+  const completedRoutineSteps = routines.reduce(
+    (acc, r) => acc + (r.steps?.filter((st) => st.completed).length || 0),
+    0
+  )
+  const routineCompletionRate = totalRoutineSteps > 0 ? Math.round((completedRoutineSteps / totalRoutineSteps) * 100) : 0
+
+  // Unread Alerts
   const unreadNotifs = notifications.filter((n) => n.read_status === "unread")
 
   return (
     <div className="space-y-8 pb-10">
-      {/* Header & Quick Action */}
+      {/* Header & Quick Actions */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Dashboard</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight">Dashboard Overview</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Your real-time command center for renewals, tasks, habits, and alerts.
+            Executive summary of spending, renewals, habits, and productivity.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <CreateItemModal triggerText="Quick Add" />
+          <CreateItemModal triggerText="Quick Add Entry" />
         </div>
       </div>
 
-      {/* Top Summary Metric Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Metric 1: Subscriptions */}
+      {/* Primary Financial & Renewal Summary Metrics */}
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Metric 1: Monthly Spending */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border border-border/60 bg-card/60 p-5 shadow-sm backdrop-blur-md"
+          className="rounded-2xl border border-border/60 bg-card/60 p-6 shadow-sm backdrop-blur-md flex flex-col justify-between"
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Monthly Subscriptions
-            </span>
-            <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <CreditCard className="size-4" />
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Monthly Spending
+              </span>
+              <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <CreditCard className="size-5" />
+              </div>
             </div>
+            <p className="mt-4 text-3xl font-black">${totalMonthlySpend.toFixed(2)}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Est. ${totalAnnualSpend.toFixed(0)}/yr projected
+            </p>
           </div>
-          <p className="mt-3 text-3xl font-black">${totalMonthlySpend.toFixed(2)}</p>
-          <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-            <span>{subscriptions.length} active services</span>
-            <Link to="/subscriptions" className="font-semibold text-primary hover:underline">
-              View all →
+          <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">Subscriptions</span>
+            <Link to="/subscriptions" className="text-xs font-bold text-primary flex items-center gap-1 hover:underline">
+              <span>View All</span>
+              <ArrowRight className="size-3" />
             </Link>
           </div>
         </motion.div>
 
-        {/* Metric 2: Pending Tasks */}
+        {/* Metric 2: Total Active Subscriptions */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="rounded-2xl border border-border/60 bg-card/60 p-5 shadow-sm backdrop-blur-md"
+          className="rounded-2xl border border-border/60 bg-card/60 p-6 shadow-sm backdrop-blur-md flex flex-col justify-between"
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Pending Priorities
-            </span>
-            <div className="flex size-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
-              <ListTodo className="size-4" />
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Active Subscriptions
+              </span>
+              <div className="flex size-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-500">
+                <ShieldCheck className="size-5" />
+              </div>
             </div>
+            <p className="mt-4 text-3xl font-black">{activeSubs.length}</p>
+            <p className="mt-1 text-xs text-emerald-500 font-semibold">
+              {subscriptions.length - activeSubs.length} paused or inactive
+            </p>
           </div>
-          <p className="mt-3 text-3xl font-black">{pendingTasks.length}</p>
-          <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-            <span className="text-amber-400 font-semibold">{urgentTasks.length} urgent</span>
-            <Link to="/tasks" className="font-semibold text-primary hover:underline">
-              Task board →
+          <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">Manage List</span>
+            <Link to="/subscriptions" className="text-xs font-bold text-primary flex items-center gap-1 hover:underline">
+              <span>Subscriptions</span>
+              <ArrowRight className="size-3" />
             </Link>
           </div>
         </motion.div>
 
-        {/* Metric 3: Habits Check-ins */}
+        {/* Metric 3: Upcoming Renewals */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="rounded-2xl border border-border/60 bg-card/60 p-5 shadow-sm backdrop-blur-md"
+          className="rounded-2xl border border-border/60 bg-card/60 p-6 shadow-sm backdrop-blur-md flex flex-col justify-between"
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Today's Habit Progress
-            </span>
-            <div className="flex size-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
-              <Target className="size-4" />
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Upcoming Renewals
+              </span>
+              <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
+                <Clock className="size-5" />
+              </div>
             </div>
+            <p className="mt-4 text-3xl font-black">{upcomingRenewals.length}</p>
+            <p className="mt-1 text-xs text-amber-400 font-semibold">
+              ${upcomingCost.toFixed(2)} due within 30 days
+            </p>
           </div>
-          <p className="mt-3 text-3xl font-black">
-            {activeHabitsCheckedToday.length} / {habits.length}
-          </p>
-          <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-            <span>
-              {habits.length > 0
-                ? `${Math.round((activeHabitsCheckedToday.length / habits.length) * 100)}% complete`
-                : "No habits set"}
-            </span>
-            <Link to="/habits" className="font-semibold text-primary hover:underline">
-              Habit grid →
+          <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">Renewal Schedule</span>
+            <Link to="/subscriptions" className="text-xs font-bold text-primary flex items-center gap-1 hover:underline">
+              <span>View Renewals</span>
+              <ArrowRight className="size-3" />
             </Link>
           </div>
         </motion.div>
 
-        {/* Metric 4: Notifications */}
+        {/* Metric 4: Monthly Savings / Budget Target */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="rounded-2xl border border-border/60 bg-card/60 p-5 shadow-sm backdrop-blur-md"
+          className="rounded-2xl border border-border/60 bg-card/60 p-6 shadow-sm backdrop-blur-md flex flex-col justify-between"
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Active Alerts
-            </span>
-            <div className="flex size-9 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-500">
-              <Bell className="size-4" />
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Monthly Savings
+              </span>
+              <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
+                <PiggyBank className="size-5" />
+              </div>
             </div>
+            <p className="mt-4 text-3xl font-black text-emerald-400">
+              ${monthlySavings.toFixed(2)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {totalBudgetLimit > 0 ? `Limit target: $${totalBudgetLimit.toFixed(2)}` : "Budget caps active"}
+            </p>
           </div>
-          <p className="mt-3 text-3xl font-black">{unreadNotifs.length}</p>
-          <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-            <span>{notifications.length} total history</span>
-            <Link to="/notifications" className="font-semibold text-primary hover:underline">
-              Alert center →
+          <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">Financial Analytics</span>
+            <Link to="/analytics" className="text-xs font-bold text-primary flex items-center gap-1 hover:underline">
+              <span>Analytics</span>
+              <ArrowRight className="size-3" />
             </Link>
           </div>
         </motion.div>
       </div>
 
-      {/* Main Grid Section */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left 2 Columns: Subscriptions & Tasks */}
-        <div className="space-y-6 lg:col-span-2">
-          {/* Upcoming Renewal Countdown */}
-          <div className="rounded-2xl border border-border/60 bg-card/60 p-6 shadow-sm backdrop-blur-md">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-bold">Upcoming Subscriptions & Renewals</h3>
-                <p className="text-xs text-muted-foreground">Services scheduled for auto-renewal soon</p>
-              </div>
-              <Link to="/subscriptions" className="text-xs font-semibold text-primary hover:underline">
-                Manage Subscriptions
-              </Link>
+      {/* Secondary Productivity Summary Overview Grid */}
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Productivity Summary 1: Tasks */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="rounded-2xl border border-border/60 bg-card/60 p-6 shadow-sm backdrop-blur-md space-y-4"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ListTodo className="size-5 text-amber-500" />
+              <h3 className="font-bold text-base">Pending Tasks</h3>
             </div>
+            <span className="text-xs font-bold px-2 py-0.5 rounded bg-amber-500/15 text-amber-400">
+              {urgentTasksCount} Urgent
+            </span>
+          </div>
 
-            <div className="divide-y divide-border/40">
-              {subscriptions.slice(0, 4).map((sub) => {
-                const isOverBudget = sub.budget_limit && sub.cost > sub.budget_limit
-                return (
-                  <div key={sub.id} className="py-3 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 font-bold text-primary text-sm">
-                        {sub.name[0]}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-sm">{sub.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {sub.category} • {sub.payment_method}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-sm">${sub.cost.toFixed(2)}</p>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Clock className="size-3 text-amber-400" />
-                        <span>Due {sub.next_renewal_date}</span>
-                      </div>
-                      {isOverBudget && (
-                        <span className="mt-0.5 inline-block text-[10px] font-bold text-red-400">
-                          Over Limit (${sub.budget_limit?.toFixed(2)})
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs font-medium">
+              <span className="text-muted-foreground">Completion Rate</span>
+              <span className="font-bold">{taskCompletionRate}%</span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full bg-amber-500 transition-all duration-300"
+                style={{ width: `${taskCompletionRate}%` }}
+              />
             </div>
           </div>
 
-          {/* Urgent Tasks Checklist */}
-          <div className="rounded-2xl border border-border/60 bg-card/60 p-6 shadow-sm backdrop-blur-md">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-bold">Pending Tasks & Priorities</h3>
-                <p className="text-xs text-muted-foreground">Inline check off your top to-dos</p>
-              </div>
-              <CreateItemModal defaultType="task" triggerText="New Task" triggerVariant="outline" />
-            </div>
-
-            <div className="space-y-2.5">
-              {tasks.slice(0, 4).map((t) => (
-                <div
-                  key={t.id}
-                  className="flex items-center justify-between rounded-xl border border-border/50 bg-background/40 p-3.5 transition-colors hover:border-primary/40"
-                >
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => toggleTaskCompleted(t.id)}
-                      className={`flex size-5 items-center justify-center rounded-md border transition-all ${
-                        t.status === "completed"
-                          ? "border-emerald-500 bg-emerald-500 text-white"
-                          : "border-border hover:border-primary"
-                      }`}
-                    >
-                      {t.status === "completed" && <CheckCircle2 className="size-3.5" />}
-                    </button>
-                    <div>
-                      <p
-                        className={`text-sm font-medium ${
-                          t.status === "completed" ? "line-through text-muted-foreground" : ""
-                        }`}
-                      >
-                        {t.title}
-                      </p>
-                      {t.due_date && (
-                        <p className="text-xs text-muted-foreground">
-                          Due {new Date(t.due_date).toLocaleDateString()}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                      t.priority === "urgent"
-                        ? "bg-red-500/15 text-red-400"
-                        : t.priority === "high"
-                        ? "bg-amber-500/15 text-amber-400"
-                        : "bg-primary/15 text-primary"
-                    }`}
-                  >
-                    {t.priority}
-                  </span>
-                </div>
-              ))}
-            </div>
+          <div className="pt-2 flex items-center justify-between text-xs border-t border-border/40">
+            <span className="text-muted-foreground">{pendingTasks.length} tasks remaining</span>
+            <Link to="/tasks" className="font-bold text-primary hover:underline">
+              Task Board →
+            </Link>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Right Column: Habit Streaks & Routines */}
-        <div className="space-y-6">
-          {/* Daily Habit Streaks */}
-          <div className="rounded-2xl border border-border/60 bg-card/60 p-6 shadow-sm backdrop-blur-md">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-bold">Daily Habit Tracker</h3>
-                <p className="text-xs text-muted-foreground">Click to log today's streak</p>
-              </div>
-              <Link to="/habits" className="text-xs font-semibold text-primary hover:underline">
-                All habits →
-              </Link>
+        {/* Productivity Summary 2: Habits */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="rounded-2xl border border-border/60 bg-card/60 p-6 shadow-sm backdrop-blur-md space-y-4"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Target className="size-5 text-emerald-500" />
+              <h3 className="font-bold text-base">Habits Today</h3>
             </div>
+            <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400">
+              {activeHabitsCheckedToday.length} / {habits.length}
+            </span>
+          </div>
 
-            <div className="space-y-3">
-              {habits.map((h) => {
-                const isChecked = habitLogs.some(
-                  (hl) => hl.habit_id === h.id && hl.completed_date === todayStr
-                )
-                return (
-                  <div
-                    key={h.id}
-                    className="flex items-center justify-between rounded-xl border border-border/50 p-3 bg-background/40"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div
-                        className="size-3 rounded-full"
-                        style={{ backgroundColor: h.color || "#6366f1" }}
-                      />
-                      <div>
-                        <p className="text-sm font-semibold">{h.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          🔥 {h.current_streak} day streak
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant={isChecked ? "default" : "outline"}
-                      className={isChecked ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}
-                      onClick={() => toggleHabitLog(h.id, todayStr)}
-                    >
-                      {isChecked ? "Done ✓" : "Check-in"}
-                    </Button>
-                  </div>
-                )
-              })}
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs font-medium">
+              <span className="text-muted-foreground">Today's Progress</span>
+              <span className="font-bold">{habitCompletionRate}%</span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full bg-emerald-500 transition-all duration-300"
+                style={{ width: `${habitCompletionRate}%` }}
+              />
             </div>
           </div>
 
-          {/* Daily Routine Checklists */}
-          <div className="rounded-2xl border border-border/60 bg-card/60 p-6 shadow-sm backdrop-blur-md">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-bold">Today's Routines</h3>
-                <p className="text-xs text-muted-foreground">Time-blocked daily checklist</p>
-              </div>
-              <Link to="/routines" className="text-xs font-semibold text-primary hover:underline">
-                Routines →
-              </Link>
-            </div>
+          <div className="pt-2 flex items-center justify-between text-xs border-t border-border/40">
+            <span className="text-muted-foreground">Streaks active</span>
+            <Link to="/habits" className="font-bold text-primary hover:underline">
+              Habits Grid →
+            </Link>
+          </div>
+        </motion.div>
 
-            <div className="space-y-4">
-              {routines.slice(0, 2).map((rt) => (
-                <div key={rt.id} className="space-y-2 border-b border-border/40 pb-3 last:border-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wider text-primary">
-                      {rt.time_of_day} • {rt.scheduled_time}
-                    </span>
-                    <span className="text-xs font-medium">{rt.title}</span>
-                  </div>
-                  {rt.steps?.map((step) => (
-                    <div key={step.id} className="flex items-center gap-2 text-xs">
-                      <input
-                        type="checkbox"
-                        checked={step.completed}
-                        onChange={() => toggleRoutineStep(rt.id, step.id)}
-                        className="rounded border-border"
-                      />
-                      <span className={step.completed ? "line-through text-muted-foreground" : ""}>
-                        {step.title}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ))}
+        {/* Productivity Summary 3: Routines */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="rounded-2xl border border-border/60 bg-card/60 p-6 shadow-sm backdrop-blur-md space-y-4"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="size-5 text-indigo-500" />
+              <h3 className="font-bold text-base">Daily Routines</h3>
+            </div>
+            <span className="text-xs font-bold px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-400">
+              {routines.length} Routines
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs font-medium">
+              <span className="text-muted-foreground">Steps Done</span>
+              <span className="font-bold">{routineCompletionRate}%</span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full bg-indigo-500 transition-all duration-300"
+                style={{ width: `${routineCompletionRate}%` }}
+              />
             </div>
           </div>
-        </div>
+
+          <div className="pt-2 flex items-center justify-between text-xs border-t border-border/40">
+            <span className="text-muted-foreground">{completedRoutineSteps} of {totalRoutineSteps} steps</span>
+            <Link to="/routines" className="font-bold text-primary hover:underline">
+              Routines →
+            </Link>
+          </div>
+        </motion.div>
+
+        {/* Productivity Summary 4: Alerts */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="rounded-2xl border border-border/60 bg-card/60 p-6 shadow-sm backdrop-blur-md space-y-4"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Bell className="size-5 text-purple-500" />
+              <h3 className="font-bold text-base">System Alerts</h3>
+            </div>
+            <span className="text-xs font-bold px-2 py-0.5 rounded bg-purple-500/15 text-purple-400">
+              {unreadNotifs.length} Unread
+            </span>
+          </div>
+
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            {unreadNotifs.length > 0
+              ? `${unreadNotifs.length} active alerts requiring your attention for upcoming renewals or task deadlines.`
+              : "All system alerts and notifications have been reviewed."}
+          </p>
+
+          <div className="pt-2 flex items-center justify-between text-xs border-t border-border/40">
+            <span className="text-muted-foreground">{notifications.length} total logs</span>
+            <Link to="/notifications" className="font-bold text-primary hover:underline">
+              Alert Center →
+            </Link>
+          </div>
+        </motion.div>
       </div>
     </div>
   )

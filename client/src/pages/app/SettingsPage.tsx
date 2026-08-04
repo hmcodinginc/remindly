@@ -1,6 +1,7 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
-import { User, Bell, Volume2, Shield, Database, Save, Check } from "lucide-react"
+import { User, Bell, Volume2, Shield, Database, Save, LogOut, Trash2, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 import { useAuthStore } from "@/store/use-auth-store"
 import { useDataStore } from "@/store/use-data-store"
@@ -11,18 +12,23 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 export function SettingsPage() {
+  const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const setUser = useAuthStore((s) => s.setUser)
+  const signOut = useAuthStore((s) => s.signOut)
+  const deleteAccount = useAuthStore((s) => s.deleteAccount)
+
   const settings = useDataStore((s) => s.settings)
   const updateSettings = useDataStore((s) => s.updateSettings)
+  const clearData = useDataStore((s) => s.clearData)
 
   const [fullName, setFullName] = useState(user?.full_name || "")
   const [email, setEmail] = useState(user?.email || "")
-  const [budgetLimit, setBudgetLimit] = useState(settings.monthly_budget_limit.toString())
-  const [webPush, setWebPush] = useState(settings.web_push_enabled)
-  const [desktopAlerts, setDesktopAlerts] = useState(settings.desktop_alerts_enabled)
-  const [audioAlerts, setAudioAlerts] = useState(settings.audio_alerts_enabled)
-  const [leadDays, setLeadDays] = useState(settings.renewal_lead_days.toString())
+  const [budgetLimit, setBudgetLimit] = useState(settings?.monthly_budget_limit?.toString() || "300")
+  const [webPush, setWebPush] = useState(settings?.web_push_enabled ?? true)
+  const [desktopAlerts, setDesktopAlerts] = useState(settings?.desktop_alerts_enabled ?? true)
+  const [audioAlerts, setAudioAlerts] = useState(settings?.audio_alerts_enabled ?? true)
+  const [leadDays, setLeadDays] = useState(settings?.renewal_lead_days?.toString() || "3")
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,6 +52,32 @@ export function SettingsPage() {
     }
   }
 
+  const handleSignOut = async () => {
+    await signOut()
+    clearData()
+    toast.success("Signed out successfully.")
+    navigate("/login")
+  }
+
+  const handleDeleteAccount = async () => {
+    if (
+      !confirm(
+        "Are you sure you want to PERMANENTLY delete your account and all associated data? This action cannot be undone."
+      )
+    ) {
+      return
+    }
+
+    const { error } = await deleteAccount()
+    if (error) {
+      toast.error(error.message || "Failed to delete account.")
+    } else {
+      clearData()
+      toast.success("Account and workspace data permanently deleted.")
+      navigate("/login")
+    }
+  }
+
   return (
     <div className="space-y-8 pb-10 max-w-4xl">
       <div>
@@ -56,11 +88,13 @@ export function SettingsPage() {
       </div>
 
       {/* PocketBase Status Banner */}
-      <div className={`p-4 rounded-2xl border flex items-center justify-between ${
-        isPocketBaseConfigured
-          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-          : "border-primary/30 bg-primary/10 text-primary"
-      }`}>
+      <div
+        className={`p-4 rounded-2xl border flex items-center justify-between ${
+          isPocketBaseConfigured
+            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+            : "border-primary/30 bg-primary/10 text-primary"
+        }`}
+      >
         <div className="flex items-center gap-3">
           <Database className="size-5" />
           <div>
@@ -189,6 +223,50 @@ export function SettingsPage() {
           </Button>
         </div>
       </form>
+
+      {/* Account Management & Danger Zone */}
+      <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 shadow-sm backdrop-blur-md space-y-4">
+        <div className="flex items-center gap-2 border-b border-destructive/20 pb-3">
+          <Shield className="size-5 text-destructive" />
+          <h3 className="text-lg font-bold text-destructive">Account Management & Security</h3>
+        </div>
+
+        <p className="text-xs text-muted-foreground">
+          Manage your session status or permanently remove your account from Remindly.
+        </p>
+
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pt-2">
+          <div className="space-y-0.5">
+            <p className="font-semibold text-sm">Sign Out of Account</p>
+            <p className="text-xs text-muted-foreground">Log out of your current session on this device</p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleSignOut}
+            className="gap-2 border-border/80 hover:bg-background"
+          >
+            <LogOut className="size-4" />
+            <span>Sign Out</span>
+          </Button>
+        </div>
+
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-t border-destructive/20 pt-4">
+          <div className="space-y-0.5">
+            <p className="font-semibold text-sm text-destructive">Delete Remindly Account</p>
+            <p className="text-xs text-muted-foreground">Permanently delete your user profile and clear all synced data</p>
+          </div>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={handleDeleteAccount}
+            className="gap-2"
+          >
+            <Trash2 className="size-4" />
+            <span>Delete Account</span>
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }

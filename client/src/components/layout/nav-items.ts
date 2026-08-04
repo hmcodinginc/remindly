@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   LineChart,
   ListTodo,
-  RefreshCw,
   Settings,
   Sparkles,
   Target,
@@ -21,7 +20,6 @@ export type NavItem = {
 export const mainNavItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { title: "Subscriptions", href: "/subscriptions", icon: CreditCard },
-  { title: "Renewals", href: "/renewals", icon: RefreshCw },
   { title: "Calendar", href: "/calendar", icon: CalendarDays },
   { title: "Tasks", href: "/tasks", icon: ListTodo },
   { title: "Daily Routines", href: "/routines", icon: Sparkles },

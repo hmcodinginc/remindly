@@ -150,11 +150,16 @@ export function AppSidebar({
             <ChevronsRight className="size-4" />
           </Button>
         ) : null}
-        <div
-          className={cn(
-            "mt-1 flex items-center gap-3 rounded-lg px-2 py-2",
-            collapsed && "justify-center",
-          )}
+        <NavLink
+          to="/settings"
+          onClick={onNavigate}
+          className={({ isActive }) =>
+            cn(
+              "mt-1 flex items-center gap-3 rounded-lg px-2 py-2 text-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+              collapsed && "justify-center px-2",
+              isActive && "bg-sidebar-accent shadow-sm font-semibold"
+            )
+          }
         >
           <Avatar className="size-8">
             {user?.avatar_url && <AvatarImage src={user.avatar_url} alt={user.full_name || 'User'} />}
@@ -163,14 +168,14 @@ export function AppSidebar({
             </AvatarFallback>
           </Avatar>
           {!collapsed ? (
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1 text-left">
               <p className="truncate text-sm font-semibold">{user?.full_name || 'Remindly User'}</p>
               <p className="truncate text-xs text-muted-foreground">
                 {user?.email || 'Personal plan'}
               </p>
             </div>
           ) : null}
-        </div>
+        </NavLink>
       </div>
     </aside>
   )
