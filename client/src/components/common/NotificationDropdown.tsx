@@ -23,14 +23,8 @@ export function NotificationDropdown() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Notifications"
-            className="relative"
-          />
-        }
+        className="relative flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none cursor-pointer"
+        aria-label="Notifications"
       >
         <Bell className="size-4" />
         {unreadList.length > 0 && (

@@ -1,11 +1,13 @@
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { ListTodo, CheckCircle2, Circle, Clock, Trash2, Plus, LayoutGrid, List, Search } from "lucide-react"
+import { ListTodo, CheckCircle2, Circle, Clock, Trash2, Edit2, LayoutGrid, List, Search } from "lucide-react"
 import { toast } from "sonner"
 import { useDataStore } from "@/store/use-data-store"
 import { CreateItemModal } from "@/components/modals/CreateItemModal"
+import { EditItemModal } from "@/components/modals/EditItemModal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import type { TaskItem } from "@/lib/pocketbase/types"
 
 export function TasksPage() {
   const tasks = useDataStore((s) => s.tasks)
@@ -17,6 +19,8 @@ export function TasksPage() {
   const [filterPriority, setFilterPriority] = useState<string>("all")
   const [filterStatus, setFilterStatus] = useState<string>("all")
   const [viewMode, setViewMode] = useState<"list" | "board">("list")
+  const [editingTask, setEditingTask] = useState<TaskItem | null>(null)
+  const [editModalOpen, setEditModalOpen] = useState(false)
 
   const filteredTasks = tasks.filter((t) => {
     const matchesSearch = t.title.toLowerCase().includes(search.toLowerCase()) || (t.description || "").toLowerCase().includes(search.toLowerCase())
@@ -32,8 +36,13 @@ export function TasksPage() {
     }
   }
 
+  const handleEditClick = (task: TaskItem) => {
+    setEditingTask(task)
+    setEditModalOpen(true)
+  }
+
   return (
-    <div className="space-y-8 pb-10">
+    <div className="space-y-6 pb-10">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -65,15 +74,15 @@ export function TasksPage() {
         </div>
       </div>
 
-      {/* Filter Bar */}
+      {/* Prominent Search and Filter Bar at the Top */}
       <div className="flex flex-wrap items-center gap-3 bg-card/40 p-4 rounded-2xl border border-border/50">
-        <div className="relative flex-1 min-w-[200px] max-w-xs">
+        <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search tasks..."
+            placeholder="Search tasks by title or description..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 h-8 text-xs bg-background"
+            className="pl-8 h-9 text-xs bg-background"
           />
         </div>
 
@@ -128,7 +137,7 @@ export function TasksPage() {
                   <button
                     type="button"
                     onClick={() => toggleTaskCompleted(t.id)}
-                    className={`mt-0.5 flex size-6 flex-shrink-0 items-center justify-center rounded-lg border transition-all ${
+                    className={`mt-0.5 flex size-6 flex-shrink-0 items-center justify-center rounded-lg border transition-all cursor-pointer ${
                       t.status === "completed"
                         ? "border-emerald-500 bg-emerald-500 text-white"
                         : "border-border hover:border-primary"
@@ -161,7 +170,7 @@ export function TasksPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between gap-4 sm:justify-end">
+                <div className="flex items-center justify-between gap-3 sm:justify-end">
                   {t.due_date && (
                     <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
                       <Clock className="size-3.5 text-amber-400" />
@@ -181,14 +190,27 @@ export function TasksPage() {
                     {t.priority}
                   </span>
 
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 text-red-400 hover:bg-red-500/10"
-                    onClick={() => handleDelete(t.id, t.title)}
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                      onClick={() => handleEditClick(t)}
+                      title="Edit Task"
+                    >
+                      <Edit2 className="size-4" />
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 text-red-400 hover:bg-red-500/10"
+                      onClick={() => handleDelete(t.id, t.title)}
+                      title="Delete Task"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
                 </div>
               </motion.div>
             ))
@@ -220,13 +242,18 @@ export function TasksPage() {
                         <button
                           type="button"
                           onClick={() => toggleTaskCompleted(t.id)}
-                          className="text-primary font-semibold hover:underline"
+                          className="text-primary font-semibold hover:underline cursor-pointer"
                         >
                           {t.status === "completed" ? "Mark Pending" : "Mark Complete"}
                         </button>
-                        <Button variant="ghost" size="icon" className="size-6 text-red-400" onClick={() => handleDelete(t.id, t.title)}>
-                          <Trash2 className="size-3" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="icon" className="size-6 text-muted-foreground hover:text-primary" onClick={() => handleEditClick(t)}>
+                            <Edit2 className="size-3" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="size-6 text-red-400" onClick={() => handleDelete(t.id, t.title)}>
+                            <Trash2 className="size-3" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -236,6 +263,14 @@ export function TasksPage() {
           })}
         </div>
       )}
+
+      {/* Edit Task Modal */}
+      <EditItemModal
+        type="task"
+        item={editingTask}
+        open={editModalOpen}
+        onOpenChange={setEditModalOpen}
+      />
     </div>
   )
 }

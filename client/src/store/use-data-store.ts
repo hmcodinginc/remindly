@@ -434,6 +434,9 @@ interface DataState {
 
   // Settings
   updateSettings: (newSettings: Partial<UserSettings>) => Promise<void>
+
+  // Reset/Clear Data
+  clearData: () => void
 }
 
 export const useDataStore = create<DataState>()(
@@ -984,6 +987,17 @@ export const useDataStore = create<DataState>()(
             console.error('PocketBase update settings error:', err)
           }
         }
+      },
+
+      clearData: () => {
+        set({
+          subscriptions: [],
+          tasks: [],
+          habits: [],
+          habitLogs: [],
+          routines: [],
+          notifications: [],
+        })
       },
     }),
     {

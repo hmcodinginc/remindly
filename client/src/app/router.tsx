@@ -9,7 +9,6 @@ import {
   DashboardPage,
   HabitsPage,
   NotificationsPage,
-  RenewalsPage,
   RoutinesPage,
   SettingsPage,
   SubscriptionsPage,
@@ -36,7 +35,6 @@ export function AppRouter() {
       <Route element={<DashboardLayout />}>
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/subscriptions" element={<SubscriptionsPage />} />
-        <Route path="/renewals" element={<RenewalsPage />} />
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/routines" element={<RoutinesPage />} />

@@ -1,11 +1,13 @@
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { CreditCard, Plus, Trash2, Edit2, AlertCircle, CheckCircle, PauseCircle, Search, Filter } from "lucide-react"
+import { CreditCard, Plus, Trash2, Edit2, CheckCircle, PauseCircle, Search, Filter } from "lucide-react"
 import { toast } from "sonner"
 import { useDataStore } from "@/store/use-data-store"
 import { CreateItemModal } from "@/components/modals/CreateItemModal"
+import { EditItemModal } from "@/components/modals/EditItemModal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import type { Subscription } from "@/lib/pocketbase/types"
 
 export function SubscriptionsPage() {
   const subscriptions = useDataStore((s) => s.subscriptions)
@@ -14,6 +16,8 @@ export function SubscriptionsPage() {
 
   const [search, setSearch] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
+  const [editingSub, setEditingSub] = useState<Subscription | null>(null)
+  const [editModalOpen, setEditModalOpen] = useState(false)
 
   const categories = Array.from(new Set(subscriptions.map((s) => s.category)))
 
@@ -47,8 +51,13 @@ export function SubscriptionsPage() {
     toast.success(`Subscription status updated to ${nextStatus}`)
   }
 
+  const handleEditClick = (sub: Subscription) => {
+    setEditingSub(sub)
+    setEditModalOpen(true)
+  }
+
   return (
-    <div className="space-y-8 pb-10">
+    <div className="space-y-6 pb-10">
       {/* Top Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -58,6 +67,35 @@ export function SubscriptionsPage() {
           </p>
         </div>
         <CreateItemModal defaultType="subscription" triggerText="Add Subscription" />
+      </div>
+
+      {/* Prominent Search and Filter Bar at the Top */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-card/40 p-4 rounded-2xl border border-border/50">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search subscriptions by name or provider..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 bg-background"
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Filter className="size-4 text-muted-foreground" />
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="rounded-md border border-input bg-background px-3 py-2 text-sm font-medium"
+          >
+            <option value="all">All Categories</option>
+            {categories.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Spending Overview Metric Bar */}
@@ -89,36 +127,7 @@ export function SubscriptionsPage() {
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search subscriptions by name or provider..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Filter className="size-4 text-muted-foreground" />
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm font-medium"
-          >
-            <option value="all">All Categories</option>
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Subscriptions Grid / Table */}
+      {/* Subscriptions Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {filteredSubs.length === 0 ? (
           <div className="col-span-full py-16 text-center rounded-2xl border border-dashed border-border/60 bg-card/20">
@@ -151,7 +160,7 @@ export function SubscriptionsPage() {
                     <button
                       type="button"
                       onClick={() => handleToggleStatus(sub.id, sub.status)}
-                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider cursor-pointer ${
                         sub.status === "active"
                           ? "bg-emerald-500/15 text-emerald-400"
                           : "bg-amber-500/15 text-amber-400"
@@ -198,21 +207,40 @@ export function SubscriptionsPage() {
 
                 <div className="mt-6 flex items-center justify-between border-t border-border/40 pt-3">
                   <span className="text-xs font-medium text-muted-foreground">{sub.payment_method}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 text-red-400 hover:bg-red-500/10"
-                    onClick={() => handleDelete(sub.id, sub.name)}
-                    title="Delete Subscription"
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                      onClick={() => handleEditClick(sub)}
+                      title="Edit Subscription"
+                    >
+                      <Edit2 className="size-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 text-red-400 hover:bg-red-500/10"
+                      onClick={() => handleDelete(sub.id, sub.name)}
+                      title="Delete Subscription"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
                 </div>
               </motion.div>
             )
           })
         )}
       </div>
+
+      {/* Edit Item Modal */}
+      <EditItemModal
+        type="subscription"
+        item={editingSub}
+        open={editModalOpen}
+        onOpenChange={setEditModalOpen}
+      />
     </div>
   )
 }

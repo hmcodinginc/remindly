@@ -117,57 +117,56 @@ export function NotificationsPage() {
         </div>
       </div>
 
-      {/* Tabs & Filters */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-card/60 p-4 rounded-2xl border border-border/50">
-        <div className="flex items-center gap-1 rounded-xl bg-muted/40 p-1">
-          <button
-            type="button"
-            onClick={() => setActiveTab("all")}
-            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
-              activeTab === "all" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            All ({notifications.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("unread")}
-            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
-              activeTab === "unread" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Unread ({unreadCount})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("snoozed")}
-            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
-              activeTab === "snoozed" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Snoozed
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("archived")}
-            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
-              activeTab === "archived" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Archived
-          </button>
+      {/* Prominent Search and Filter Bar at the Top */}
+      <div className="flex flex-col gap-4 bg-card/40 p-4 rounded-2xl border border-border/50">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search notifications by title or message..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 bg-background"
+          />
         </div>
 
-        {/* Type Filter & Search */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative w-full sm:w-48">
-            <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search alerts..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 h-8 text-xs bg-background"
-            />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-2 border-t border-border/40">
+          <div className="flex items-center gap-1 rounded-xl bg-muted/40 p-1 overflow-x-auto">
+            <button
+              type="button"
+              onClick={() => setActiveTab("all")}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
+                activeTab === "all" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              All ({notifications.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("unread")}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
+                activeTab === "unread" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Unread ({unreadCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("snoozed")}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
+                activeTab === "snoozed" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Snoozed
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("archived")}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
+                activeTab === "archived" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Archived
+            </button>
           </div>
 
           <div className="flex items-center gap-2">

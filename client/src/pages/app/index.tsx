@@ -1,6 +1,5 @@
 export { DashboardPage } from './DashboardPage'
 export { SubscriptionsPage } from './SubscriptionsPage'
-export { SubscriptionsPage as RenewalsPage } from './SubscriptionsPage'
 export { CalendarPage } from './CalendarPage'
 export { TasksPage } from './TasksPage'
 export { RoutinesPage } from './RoutinesPage'
