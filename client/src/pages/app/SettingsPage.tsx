@@ -83,11 +83,11 @@ export function SettingsPage() {
       <div>
         <h1 className="text-3xl font-extrabold tracking-tight">Settings & Preferences</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Manage your account profile, PocketBase sync status, and multi-channel notification rules.
+          Manage your account profile, cloud sync status, and multi-channel notification rules.
         </p>
       </div>
 
-      {/* PocketBase Status Banner */}
+      {/* Cloud Database Status Banner */}
       <div
         className={`p-4 rounded-2xl border flex items-center justify-between ${
           isPocketBaseConfigured
@@ -99,12 +99,12 @@ export function SettingsPage() {
           <Database className="size-5" />
           <div>
             <p className="font-bold text-sm">
-              {isPocketBaseConfigured ? "PocketBase Cloud Database Connected" : "Local Persistent Storage Active"}
+              {isPocketBaseConfigured ? "Cloud Database Connected" : "Local Persistent Storage Active"}
             </p>
             <p className="text-xs opacity-80">
               {isPocketBaseConfigured
-                ? "All user data, auth sessions, and CRUD operations are synchronized live with PocketBase cloud."
-                : "App is running in persistent storage mode. Add VITE_POCKETBASE_URL to .env to connect cloud database."}
+                ? "All user data, auth sessions, and workspace items are synchronized live with cloud storage."
+                : "App is running in persistent storage mode."}
             </p>
           </div>
         </div>

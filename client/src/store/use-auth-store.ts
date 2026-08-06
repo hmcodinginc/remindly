@@ -6,7 +6,7 @@ import type { Profile } from '@/lib/pocketbase/types'
 function formatPocketBaseError(error: any, defaultMsg: string): string {
   if (!error) return defaultMsg
   if (error.status === 0 || error.message === 'Failed to fetch') {
-    return 'Database server is unreachable on http://127.0.0.1:8090. Ensure PocketBase is running.'
+    return 'Database server is unreachable. Please check your network connection.'
   }
   const data = error.data?.data || error.response?.data
   if (data && typeof data === 'object') {
