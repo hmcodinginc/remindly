@@ -104,10 +104,6 @@ export function NotificationsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" className="gap-2" onClick={handleTestWebPush}>
-            <Send className="size-4" />
-            <span>Test Web Push & Audio</span>
-          </Button>
           {unreadCount > 0 && (
             <Button className="gap-2" onClick={markAllNotificationsRead}>
               <CheckCheck className="size-4" />
