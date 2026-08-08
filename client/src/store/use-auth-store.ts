@@ -14,7 +14,12 @@ function formatPocketBaseError(error: any, defaultMsg: string): string {
     if (keys.length > 0) {
       const firstKey = keys[0]
       const msg = data[firstKey]?.message
-      if (msg) return `${firstKey}: ${msg}`
+      if (msg) {
+        if (firstKey === 'email' && (msg.includes('unique') || msg.includes('in use') || msg.includes('invalid'))) {
+          return 'An account with this email address already exists. Please sign in instead.'
+        }
+        return `${firstKey}: ${msg}`
+      }
     }
   }
   return error.message || defaultMsg
@@ -36,6 +41,7 @@ interface AuthState {
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
   deleteAccount: () => Promise<{ error: Error | null }>
+  resetPassword: (email: string, newPassword: string) => Promise<{ error: Error | null; sentLink?: boolean }>
   initializeAuth: () => Promise<void>
 }
 
@@ -163,11 +169,59 @@ export const useAuthStore = create<AuthState>()(
             return { error: null }
           } catch (err: any) {
             set({ loading: false })
-            const msg = formatPocketBaseError(err, 'Failed to delete account from PocketBase.')
+            const msg = formatPocketBaseError(err, 'Failed to delete account.')
             return { error: new Error(msg) }
           }
         } else {
           set({ user: null, loading: false })
+          return { error: null }
+        }
+      },
+
+      resetPassword: async (email: string, newPassword: string) => {
+        set({ loading: true })
+        if (isPocketBaseConfigured) {
+          try {
+            // Find user record by email
+            const record = await pb.collection('users').getFirstListItem(`email="${email.trim()}"`)
+            if (record) {
+              await pb.collection('users').update(record.id, {
+                password: newPassword,
+                passwordConfirm: newPassword,
+              })
+              const authData = await pb.collection('users').authWithPassword(email.trim(), newPassword)
+              set({
+                user: {
+                  id: authData.record.id,
+                  email: authData.record.email,
+                  full_name: authData.record.name || authData.record.full_name || email.split('@')[0],
+                },
+                loading: false,
+              })
+              return { error: null }
+            } else {
+              set({ loading: false })
+              return { error: new Error('No account found with this email address.') }
+            }
+          } catch (err: any) {
+            // Fallback: try requestPasswordReset if direct update rule is restricted
+            try {
+              await pb.collection('users').requestPasswordReset(email.trim())
+              set({ loading: false })
+              return { error: null, sentLink: true }
+            } catch (err2: any) {
+              set({ loading: false })
+              const msg = formatPocketBaseError(err2, 'Failed to reset password.')
+              return { error: new Error(msg) }
+            }
+          }
+        } else {
+          const user: UserSession = {
+            id: 'user-' + Date.now(),
+            email,
+            full_name: email.split('@')[0],
+          }
+          set({ user, loading: false })
           return { error: null }
         }
       },
