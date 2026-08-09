@@ -14,15 +14,24 @@ export function RegisterPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
+  const [existingUserNotice, setExistingUserNotice] = useState(false)
+
   const signUp = useAuthStore((s) => s.signUp)
   const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setExistingUserNotice(false)
+
     const { error } = await signUp(email, password, fullName)
     setLoading(false)
+
     if (error) {
+      const isDuplicate = error.message.toLowerCase().includes("already exists") || error.message.toLowerCase().includes("unique")
+      if (isDuplicate) {
+        setExistingUserNotice(true)
+      }
       toast.error(error.message || "Registration failed")
     } else {
       toast.success(`Account created successfully (${plan.toUpperCase()} Plan)!`)
@@ -75,14 +84,25 @@ export function RegisterPage() {
           />
         </div>
 
-        <Button type="submit" className="w-full" disabled={loading}>
+        {existingUserNotice && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-400 text-center space-y-1.5">
+            <p className="font-semibold">Account Already Exists!</p>
+            <p>An account with <span className="font-bold">{email}</span> is already registered.</p>
+            <div className="pt-1 flex items-center justify-center gap-3 font-bold underline">
+              <Link to="/login" className="hover:text-amber-200">Sign In Now →</Link>
+              <Link to="/forgot-password" className="hover:text-amber-200">Reset Password →</Link>
+            </div>
+          </div>
+        )}
+
+        <Button type="submit" className="w-full cursor-pointer" disabled={loading}>
           {loading ? "Creating Account..." : `Sign Up (${plan.toUpperCase()} Plan)`}
         </Button>
       </form>
 
       <p className="text-center text-sm text-muted-foreground">
         Already have an account?{" "}
-        <Link to="/login" className="text-primary hover:underline">
+        <Link to="/login" className="text-primary font-semibold hover:underline">
           Sign in
         </Link>
       </p>

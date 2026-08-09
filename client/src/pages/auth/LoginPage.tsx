@@ -7,18 +7,24 @@ import { Label } from "@/components/ui/label"
 import { useAuthStore } from "@/store/use-auth-store"
 
 export function LoginPage() {
-  const [email, setEmail] = useState("alex.remindly@example.com")
-  const [password, setPassword] = useState("password123")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
+  const [loginError, setLoginError] = useState<string | null>(null)
+
   const signIn = useAuthStore((s) => s.signIn)
   const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setLoginError(null)
+
     const { error } = await signIn(email, password)
     setLoading(false)
+
     if (error) {
+      setLoginError(error.message || "Invalid email or password.")
       toast.error(error.message || "Failed to sign in")
     } else {
       toast.success("Welcome back to Remindly!")
@@ -37,7 +43,7 @@ export function LoginPage() {
 
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">Email address</Label>
           <Input
             id="email"
             type="email"
@@ -50,7 +56,7 @@ export function LoginPage() {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label htmlFor="password">Password</Label>
-            <Link to="/forgot-password" className="text-xs text-primary hover:underline">
+            <Link to="/forgot-password" className="text-xs text-primary font-semibold hover:underline">
               Forgot password?
             </Link>
           </div>
@@ -63,14 +69,27 @@ export function LoginPage() {
             required
           />
         </div>
-        <Button type="submit" className="w-full" disabled={loading}>
+
+        {loginError && (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-400 text-center space-y-1">
+            <p className="font-semibold">{loginError}</p>
+            <p className="text-[11px] opacity-90">
+              Forgot your password?{" "}
+              <Link to="/forgot-password" className="font-bold underline hover:text-red-200">
+                Reset password here
+              </Link>
+            </p>
+          </div>
+        )}
+
+        <Button type="submit" className="w-full cursor-pointer" disabled={loading}>
           {loading ? "Signing in..." : "Sign in"}
         </Button>
       </form>
 
       <p className="text-center text-sm text-muted-foreground">
         Don&apos;t have an account?{" "}
-        <Link to="/register" className="text-primary hover:underline">
+        <Link to="/register" className="text-primary font-semibold hover:underline">
           Create one
         </Link>
       </p>
